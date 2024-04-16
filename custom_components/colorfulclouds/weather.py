@@ -29,6 +29,7 @@ from homeassistant.components.weather import (
     Forecast,
     WeatherEntity,
     WeatherEntityFeature,
+    
 )
 from homeassistant.const import (
     CONF_NAME,
@@ -51,6 +52,7 @@ from .const import (
     NAME,
     MANUFACTURER,
     CONF_LIFEINDEX,
+ 
 )
 
 PARALLEL_UPDATES = 1
@@ -366,7 +368,33 @@ class ColorfulCloudsEntity(WeatherEntity):
     def updatetime(self):
         """实时天气预报获取时间."""
         return datetime.fromtimestamp(self.coordinator.data['server_time'])
+    
+#add by zhou begin
+    # @property
+    # def forecast(self):
+    #     """Return the forecast array."""
+    #     # Assuming self.coordinator.data contains the raw forecast data
+    #     raw_forecast_data = self.coordinator.data.get('forecast')
+
+    #     # Convert your raw forecast data to Home Assistant's expected format
+    #     ha_forecast_data = []
+    #     for entry in raw_forecast_data:
+    #         ha_forecast_entry = {
+    #             ATTR_FORECAST_TIME: entry['ATTR_FORECAST_TIME'],  # Convert to ISO formatted string if necessary
+    #             ATTR_FORECAST_CONDITION: CONDITION_MAP.get(entry['ATTR_FORECAST_CONDITION'], 'unknown'),
+    #             ATTR_FORECAST_NATIVE_TEMP: entry['ATTR_FORECAST_NATIVE_TEMP'],
+    #             ATTR_FORECAST_NATIVE_TEMP_LOW: entry['ATTR_FORECAST_NATIVE_TEMP_LOW'],
+    #             ATTR_FORECAST_NATIVE_PRECIPITATION: entry['ATTR_FORECAST_NATIVE_PRECIPITATION'],
+    #             ATTR_FORECAST_PRECIPITATION_PROBABILITY: entry['ATTR_FORECAST_PRECIPITATION_PROBABILITY'],
+    #             ATTR_FORECAST_NATIVE_WIND_SPEED: entry['ATTR_FORECAST_NATIVE_WIND_SPEED'],
+    #             ATTR_FORECAST_WIND_BEARING: entry['ATTR_FORECAST_WIND_BEARING'],
+    #         }
+    #         ha_forecast_data.append(ha_forecast_entry)
+
+    #     return ha_forecast_data    
         
+
+#add by zhou end
         
     async def async_forecast_daily(self) -> list[Forecast]:
         """Return the daily forecast."""
@@ -543,6 +571,8 @@ class ColorfulCloudsEntity(WeatherEntity):
         data['daily_forecast'] = self.daily_forecast()
         data['hourly_forecast'] = self.hourly_forecast()
         data['forecast_hourly_summary'] = self.hourly_summary
+
+
         
         data['winddir'] = self.getWindDir(self.coordinator.data['result']['realtime']['wind']['direction'])
         data['windscale'] = self.getWindLevel(self.coordinator.data['result']['realtime']['wind']['speed'])
@@ -552,6 +582,8 @@ class ColorfulCloudsEntity(WeatherEntity):
         
         data['city'] = self.coordinator.data['result']['alert']['adcodes'][len(self.coordinator.data['result']['alert']['adcodes'])-1]['name']
         
+
+
         if self.life == True:
             data[ATTR_SUGGESTION] = [{'title': k, 'title_cn': TRANSLATE_SUGGESTION.get(k,k), 'brf': v.get('desc'), 'txt': v.get('detail') } for k, v in self.coordinator.data['lifeindex'].items()]
             #data["custom_ui_more_info"] = "colorfulclouds-weather-more-info"        
@@ -793,4 +825,9 @@ class ColorfulCloudsEntity(WeatherEntity):
     async def async_update(self):
         """Update Colorfulclouds entity."""
         await self.coordinator.async_request_refresh()
+        #add by zhou begin
+        self._daily_forecast = self.daily_forecast
+        self._hourly_forecast = self.hourly_forecast
+        #self._daily_twice_forecast = self._data._daily_twice_forecast
+        #add by zhou end        
         

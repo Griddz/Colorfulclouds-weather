@@ -2,9 +2,12 @@ import logging
 import json
 import time
 from datetime import datetime, timedelta
+from homeassistant.helpers.device_registry import DeviceEntryType
 import homeassistant.util.dt as dt_util
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.components.weather import (
     ATTR_FORECAST_CONDITION,
+    ATTR_FORECAST_HUMIDITY,
     ATTR_FORECAST_NATIVE_PRECIPITATION,
     ATTR_FORECAST_NATIVE_TEMP,
     ATTR_FORECAST_NATIVE_TEMP_LOW,
@@ -146,7 +149,7 @@ TRANSLATE_SUGGESTION = {
     'DatingIndex': '交友指数',
     'ShoppingIndex': '逛街指数',
     'HairdressingIndex': '美发指数',
-    'NightLifeIndex': '夜生活',
+    'NightLifeIndex': '夜生活指数',
     'BoatingIndex': '划船指数',
     'RoadConditionIndex': '路况指数',
     'TrafficIndex': '交通指数',
@@ -155,6 +158,8 @@ TRANSLATE_SUGGESTION = {
     'dressing': '穿衣指数',
     'comfort': '舒适度指数',
     'coldRisk': '感冒指数',
+    'TakeoutIndex': '送外卖指数',
+    'StreetStallIndex': '摆摊指数',
 }
 
 ATTR_SUGGESTION = "suggestion"
@@ -181,9 +186,6 @@ class ColorfulCloudsEntity(WeatherEntity):
         self._attrs = {}
         self._hourly_data = []
         self.hourly_summary = ""
-        forecast_daily = list[list] | None
-        forecast_hourly = list[list] | None
-        forecast_twice_daily = list[list] | None
 
         # self._unit_system = "Metric" if self.coordinator.data["is_metric"]=="metric:v2" else "Imperial"
         # Coordinator data is used also for sensors which don't have units automatically
@@ -203,18 +205,6 @@ class ColorfulCloudsEntity(WeatherEntity):
             self._attr_native_temperature_unit = TEMP_FAHRENHEIT
             self._attr_native_visibility_unit = LENGTH_MILES
             self._attr_native_wind_speed_unit = SPEED_MILES_PER_HOUR
-            
-            
-        self._forecast_daily = forecast_daily
-        self._forecast_hourly = forecast_hourly
-        self._forecast_twice_daily = forecast_twice_daily
-        self._attr_supported_features = 0
-        if self._forecast_daily:
-            self._attr_supported_features |= WeatherEntityFeature.FORECAST_DAILY
-        if self._forecast_hourly:
-            self._attr_supported_features |= WeatherEntityFeature.FORECAST_HOURLY
-        if self._forecast_twice_daily:
-            self._attr_supported_features |= WeatherEntityFeature.FORECAST_TWICE_DAILY
         
 
     @property
@@ -393,6 +383,7 @@ class ColorfulCloudsEntity(WeatherEntity):
 
     #     return ha_forecast_data    
         
+<<<<<<< HEAD
 
 #add by zhou end
         
@@ -546,6 +537,8 @@ class ColorfulCloudsEntity(WeatherEntity):
         return forecast_data
 
         
+=======
+>>>>>>> 8dba9ecd213d1c9fb82814abd726a85493c79b04
     @property
     def state_attributes(self):
         _LOGGER.debug(self.coordinator.data)
@@ -568,7 +561,6 @@ class ColorfulCloudsEntity(WeatherEntity):
         data['aqi_usa_description'] = self.aqi_usa_description
         data['update_time'] = self.updatetime
         
-        data['daily_forecast'] = self.daily_forecast()
         data['hourly_forecast'] = self.hourly_forecast()
         data['forecast_hourly_summary'] = self.hourly_summary
 
@@ -576,6 +568,15 @@ class ColorfulCloudsEntity(WeatherEntity):
         
         data['winddir'] = self.getWindDir(self.coordinator.data['result']['realtime']['wind']['direction'])
         data['windscale'] = self.getWindLevel(self.coordinator.data['result']['realtime']['wind']['speed'])
+
+        data['hourly_precipitation'] = self.coordinator.data['result']['hourly']['precipitation']
+        data['hourly_temperature'] = self.coordinator.data['result']['hourly']['temperature']
+        data['hourly_cloudrate'] = self.coordinator.data['result']['hourly']['cloudrate']
+        data['hourly_skycon'] = self.coordinator.data['result']['hourly']['skycon']
+        data['hourly_wind'] = self.coordinator.data['result']['hourly']['wind']
+        data['hourly_visibility'] = self.coordinator.data['result']['hourly']['visibility']
+        data['hourly_aqi'] = self.coordinator.data['result']['hourly']['air_quality']['aqi']
+        data['hourly_pm25'] = self.coordinator.data['result']['hourly']['air_quality']['pm25']
         
         data['sunrise'] = self.coordinator.data['result']['daily']['astro'][0]['sunrise']['time']
         data['sunset'] = self.coordinator.data['result']['daily']['astro'][0]['sunset']['time']
@@ -586,10 +587,11 @@ class ColorfulCloudsEntity(WeatherEntity):
 
         if self.life == True:
             data[ATTR_SUGGESTION] = [{'title': k, 'title_cn': TRANSLATE_SUGGESTION.get(k,k), 'brf': v.get('desc'), 'txt': v.get('detail') } for k, v in self.coordinator.data['lifeindex'].items()]
-            #data["custom_ui_more_info"] = "colorfulclouds-weather-more-info"        
-        return data    
+            data["custom_ui_more_info"] = "colorfulclouds-weather-more-info"        
+        return data  
 
-    def daily_forecast(self):
+    @property
+    def forecast(self):
         forecast_data = []
         for i in range(len(self.coordinator.data['result']['daily']['temperature'])):
             time_str = self.coordinator.data['result']['daily']['temperature'][i]['date'][:10]
@@ -601,6 +603,7 @@ class ColorfulCloudsEntity(WeatherEntity):
                 ATTR_FORECAST_NATIVE_PRECIPITATION: self.coordinator.data['result']['daily']['precipitation'][i]['avg'],
                 ATTR_FORECAST_NATIVE_TEMP: int(self.coordinator.data['result']['daily']['temperature'][i]['max']),
                 ATTR_FORECAST_NATIVE_TEMP_LOW: int(self.coordinator.data['result']['daily']['temperature'][i]['min']),
+                ATTR_FORECAST_HUMIDITY: round(self.coordinator.data['result']['daily']['humidity'][i]['avg'],2),
                 ATTR_FORECAST_WIND_BEARING: self.coordinator.data['result']['daily']['wind'][i]['avg']['direction'],
                 ATTR_FORECAST_NATIVE_WIND_SPEED: self.coordinator.data['result']['daily']['wind'][i]['avg']['speed'],
                 "winddir": self.getWindDir(self.coordinator.data['result']['daily']['wind'][i]['avg']['direction']),
@@ -654,7 +657,7 @@ class ColorfulCloudsEntity(WeatherEntity):
                 hourly_forecastItem = {
                     'skycon': hourly_data['hourly_skycon'][i]['value'],
                     ATTR_FORECAST_NATIVE_TEMP: round(hourly_data['hourly_temperature'][i]['value']),
-                    'humidity': round(hourly_data['hourly_humidity'][i]['value'],2),
+                    ATTR_FORECAST_HUMIDITY: round(hourly_data['hourly_humidity'][i]['value'],2),
                     'cloudrate': hourly_data['hourly_cloudrate'][i]['value'],
                     ATTR_FORECAST_NATIVE_WIND_SPEED: hourly_data['hourly_wind'][i]['speed'],
                     ATTR_FORECAST_WIND_BEARING: hourly_data['hourly_wind'][i]['direction'],
@@ -709,8 +712,8 @@ class ColorfulCloudsEntity(WeatherEntity):
             self.hourly_summary = hourly_summary    
             
             return hourly_forecast_data
-            
-            
+
+    
     def getWindDir(self, deg):
         #_LOGGER.debug(int((deg + 11.25) / 22.5))
         return WINDDIRECTIONS[int((deg + 11.25) / 22.5)]
@@ -795,29 +798,6 @@ class ColorfulCloudsEntity(WeatherEntity):
     
     async def async_added_to_hass(self):
         """Connect to dispatcher listening for entity data notifications."""
-        """Set up a timer updating the forecasts."""
-
-        async def update_forecasts(_: datetime) -> None:
-            if self._forecast_daily:
-                self._forecast_daily = (
-                    self._forecast_daily[1:] + self._forecast_daily[:1]
-                )
-            if self._forecast_hourly:
-                self._forecast_hourly = (
-                    self._forecast_hourly[1:] + self._forecast_hourly[:1]
-                )
-            if self._forecast_twice_daily:
-                self._forecast_twice_daily = (
-                    self._forecast_twice_daily[1:] + self._forecast_twice_daily[:1]
-                )
-            await self.async_update_listeners(None)
-
-        # self.async_on_remove(
-            # async_track_time_interval(
-                # self.hass, update_forecasts, WEATHER_UPDATE_INTERVAL
-            # )
-        # )
-        
         self.async_on_remove(
             self.coordinator.async_add_listener(self.async_write_ha_state)
         )
@@ -825,9 +805,20 @@ class ColorfulCloudsEntity(WeatherEntity):
     async def async_update(self):
         """Update Colorfulclouds entity."""
         await self.coordinator.async_request_refresh()
+<<<<<<< HEAD
         #add by zhou begin
         self._daily_forecast = self.daily_forecast
         self._hourly_forecast = self.hourly_forecast
         #self._daily_twice_forecast = self._data._daily_twice_forecast
         #add by zhou end        
         
+=======
+        
+    @property
+    def extra_state_attributes(self):
+        """Return the extra state attributes."""
+        extra_attrs = super().extra_state_attributes or {}
+        # 假设你已经有了一个名为forecast的属性，你想将其添加到额外的状态属性中
+        extra_attrs["forecast"] = self.forecast
+        return extra_attrs        
+>>>>>>> 8dba9ecd213d1c9fb82814abd726a85493c79b04
